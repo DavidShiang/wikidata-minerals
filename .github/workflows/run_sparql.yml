@@ -2,22 +2,24 @@
 name: Run Wikidata Query and Update Data
 
 on:
-  # 每天 UTC 时间 01:00 运行一次
+  # 每日 UTC 时间 01:00 运行一次
   # schedule:
-  #  - cron: '0 1 * * *'
-  # 也可以手动触发
+  #   - cron: '0 1 * * *'
+  # 允许手动触发
   workflow_dispatch:
 
 jobs:
   update-data:
     runs-on: ubuntu-latest
     steps:
-      # 1. 检出仓库代码
+      # 1. 检出仓库代码 (使用 token 确保有写入权限)
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # 确保后续步骤能够推送更改
+          # 使用内置的 GITHUB_TOKEN，它具有写入权限
           token: ${{ secrets.GITHUB_TOKEN }} 
+          # 获取完整的历史记录，以便 Git 提交工作正常
+          fetch-depth: 0 
 
       # 2. 设置 Python 环境
       - name: Set up Python
@@ -29,13 +31,30 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # 4. 运行查询脚本
+      # 4. 运行查询脚本 (生成 minerals_data.csv)
       - name: Run SPARQL query and save CSV
         run: python run_query.py
+        # 允许脚本执行失败，但我们仍希望尝试提交现有数据 (可选，这里假设成功)
 
-      # 5. 检查并提交更改（如果文件有变化）
+      # 5. 配置 Git 用户信息
+      - name: Configure Git
+        run: |
+          git config user.name 'GitHub Actions Bot'
+          git config user.email 'github-actions[at]users.noreply.github.com' # 官方推荐的 bot 邮箱格式
+
+      # 6. 提交并推送结果文件 (使用标准 Git 命令)
       - name: Commit and push changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+        run: |
+          # 检查文件是否有实际变化
+          git add minerals_data.csv
+          git diff --staged --quiet || (git commit -m "Automated data update: Minerals/Gemstones data" && git push)
+        env:
+          # 确保 GITHUB_TOKEN 可用
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 7. (可选) 上传生成的文件作为 Action Artifact
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
-          commit_message: "Automated data update: New mineral/gemstone data from Wikidata"
-          files: minerals_data.csv # 提交运行脚本生成的文件
+          name: minerals-data-csv
+          path: minerals_data.csv
