@@ -1,0 +1,41 @@
+# .github/workflows/run_sparql.yml
+name: Run Wikidata Query and Update Data
+
+on:
+  # 每天 UTC 时间 01:00 运行一次
+  # schedule:
+  #  - cron: '0 1 * * *'
+  # 也可以手动触发
+  workflow_dispatch:
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 检出仓库代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # 确保后续步骤能够推送更改
+          token: ${{ secrets.GITHUB_TOKEN }} 
+
+      # 2. 设置 Python 环境
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # 3. 安装依赖
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # 4. 运行查询脚本
+      - name: Run SPARQL query and save CSV
+        run: python run_query.py
+
+      # 5. 检查并提交更改（如果文件有变化）
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Automated data update: New mineral/gemstone data from Wikidata"
+          files: minerals_data.csv # 提交运行脚本生成的文件
