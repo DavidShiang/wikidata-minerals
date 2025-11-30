@@ -1,38 +1,24 @@
 SELECT DISTINCT ?item ?itemLabel 
-                ?mohsHardness ?densityValue ?colorLabel ?chemicalFormula 
-                ?image ?crystalSystemLabel ?refractiveIndex ?mainLocationLabel
 WHERE 
 {
   # 1. 核心目标概念ID集合 (矿物、宝石、矿物种)
   VALUES ?targetClass { wd:Q8268 wd:Q55255 wd:Q4295325 }
 
-  # 2. 匹配条件：P31 (实例是) 或 P279* (子类是 递归)
+  # 2. 匹配条件
   { ?item wdt:P31 ?targetClass . }
   UNION
   { ?item wdt:P279* ?targetClass . }
   
-  # 3. 可选属性
-  OPTIONAL { ?item wdt:P2828 ?mohsHardness . }
-  OPTIONAL { ?item wdt:P2052 ?densityNode . 
-             ?densityNode psv:P2052 [ wikibase:quantityAmount ?densityValue ] . }
-  OPTIONAL { ?item wdt:P462 ?color . }
-  OPTIONAL { ?item wdt:P2733 ?chemicalFormula . }
-  OPTIONAL { ?item wdt:P18 ?image . }
-  OPTIONAL { ?item wdt:P2797 ?crystalSystem . }
-  OPTIONAL { ?item wdt:P6135 ?refractiveIndex . }
-  OPTIONAL { ?item wdt:P921 ?mainLocation . } 
-  
-  # 4. 获取标签
+  # 3. 获取标签 (只获取 ?itemLabel)
   SERVICE wikibase:label { 
     bd:serviceParam wikibase:language "zh-hans,en" . 
     ?item rdfs:label ?itemLabel .
-    OPTIONAL { ?color rdfs:label ?colorLabel . }            # 确保即使 color 标签失败也不会中断
-    OPTIONAL { ?crystalSystem rdfs:label ?crystalSystemLabel . }
-    OPTIONAL { ?mainLocation rdfs:label ?mainLocationLabel . }
   }
 
-  # 5. 过滤：排除 Q8268, Q55255, Q4295325 自身，并确保 ?itemLabel 存在
+  # 4. 过滤
   FILTER (?item != wd:Q8268 && ?item != wd:Q55255 && ?item != wd:Q4295325)
-  FILTER (BOUND(?itemLabel)) # 确保 itemLabel 存在
+  FILTER (BOUND(?itemLabel))
 
+  # 🌟 关键：重新引入一个合理的 LIMIT
+  LIMIT 500 
 }
