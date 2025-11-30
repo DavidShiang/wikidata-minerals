@@ -1,0 +1,29 @@
+# query.sparql
+SELECT DISTINCT ?item ?itemLabel 
+                ?mohsHardness ?densityValue ?colorLabel ?chemicalFormula 
+                ?image ?crystalSystemLabel ?refractiveIndex ?mainLocationLabel
+WHERE 
+{
+  VALUES ?targetClass { wd:Q8268 wd:Q55255 wd:Q4295325 }
+  { ?item wdt:P31 ?targetClass . }
+  UNION
+  { ?item wdt:P279* ?targetClass . }
+  OPTIONAL { ?item wdt:P2828 ?mohsHardness . }
+  OPTIONAL { ?item wdt:P2052 ?densityNode . 
+             ?densityNode psv:P2052 [ wikibase:quantityAmount ?densityValue ] . }
+  OPTIONAL { ?item wdt:P462 ?color . }
+  OPTIONAL { ?item wdt:P2733 ?chemicalFormula . }
+  OPTIONAL { ?item wdt:P18 ?image . }
+  OPTIONAL { ?item wdt:P2797 ?crystalSystem . }
+  OPTIONAL { ?item wdt:P6135 ?refractiveIndex . }
+  OPTIONAL { ?item wdt:P921 ?mainLocation . } 
+  SERVICE wikibase:label { 
+    bd:serviceParam wikibase:language "zh-hans,en" . 
+    ?item rdfs:label ?itemLabel .
+    ?color rdfs:label ?colorLabel .
+    ?crystalSystem rdfs:label ?crystalSystemLabel .
+    ?mainLocation rdfs:label ?mainLocationLabel .
+  }
+  # 限制条目数量，防止大型查询超时
+  LIMIT 500
+}
