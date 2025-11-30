@@ -1,25 +1,41 @@
-SELECT DISTINCT ?item ?itemLabel 
+SELECT DISTINCT ?item 
+                ?mohsHardness ?densityNode ?chemicalFormula 
+                ?color ?image ?crystalSystem ?refractiveIndex ?mainLocation
 WHERE 
 {
-  # 核心匹配逻辑
-  VALUES ?targetClass { wd:Q8268 wd:Q55255 wd:Q4295325 }
+  # 1. 核心目标概念ID集合 (使用新的、更稳定的ID)
+  VALUES ?targetClass { 
+    #<http://www.wikidata.org/entity/Q7946>     # 矿物 (mineral, 新ID)
+    #<http://www.wikidata.org/entity/Q83437>    # 宝石 (gemstone, 新ID)
+    <http://www.wikidata.org/entity/Q12089225>  # 矿物种 (mineral species, 沿用)
+  }
+
+  # 2. 匹配条件
   { ?item wdt:P31 ?targetClass . }
   UNION
   { ?item wdt:P279* ?targetClass . }
   
-  # 🌟 关键：使用 MINUS 明确排除这三个ID
-  MINUS {
-    VALUES ?item { wd:Q8268 wd:Q55255 wd:Q4295325 }
-  }
-
-  # 获取标签
-  SERVICE wikibase:label { 
-    bd:serviceParam wikibase:language "zh-hans,en" . 
-    ?item rdfs:label ?itemLabel .
-  }
+  # 3. 强制要求存在化学式 (P2733)，以排除无关条目
+  # ?item wdt:P2733 ?chemicalFormula .
+   ?item wdt:P1088 ?mohsHardness .
   
-  # 确保 itemLabel 存在
-  FILTER (BOUND(?itemLabel))
-
-  LIMIT 500 
+  # 4. 属性 (保留 OPTIONAL)
+  OPTIONAL { ?item wdt:P1088 ?mohsHardness . }
+  OPTIONAL { ?item wdt:P274 ?chemicalFormula . }
+  OPTIONAL { ?item wdt:P2054 ?densityNode . } 
+  OPTIONAL { ?item wdt:P462 ?color . }
+  OPTIONAL { ?item wdt:P18 ?image . }
+  OPTIONAL { ?item wdt:P556 ?crystalSystem . }
+  OPTIONAL { ?item wdt:P6135 ?refractiveIndex . }
+  OPTIONAL { ?item wdt:P921 ?mainLocation . } 
+  
+  # 5. 过滤：使用 MINUS 排除父类
+  #MINUS {
+  #  VALUES ?item { 
+  #      #<http://www.wikidata.org/entity/Q7946> 
+  #      <http://www.wikidata.org/entity/Q83437> 
+  #     #<http://www.wikidata.org/entity/Q4295325> 
+  #  }
+  #}
 }
+LIMIT 500
