@@ -9,16 +9,15 @@ WHERE
   UNION
   { ?item wdt:P279* ?targetClass . }
   
-  # 3. 获取标签 (只获取 ?itemLabel)
+  # 3. 获取标签
   SERVICE wikibase:label { 
     bd:serviceParam wikibase:language "zh-hans,en" . 
     ?item rdfs:label ?itemLabel .
   }
 
-  # 4. 过滤
+  # 🌟 关键：确保 FILTER 存在并正确执行
   FILTER (?item != wd:Q8268 && ?item != wd:Q55255 && ?item != wd:Q4295325)
   FILTER (BOUND(?itemLabel))
 
-  # 🌟 关键：重新引入一个合理的 LIMIT
   LIMIT 500 
 }
