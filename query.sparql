@@ -1,22 +1,24 @@
 SELECT DISTINCT ?item ?itemLabel 
 WHERE 
 {
-  # 1. 核心目标概念ID集合 (矿物、宝石、矿物种)
+  # 核心匹配逻辑
   VALUES ?targetClass { wd:Q8268 wd:Q55255 wd:Q4295325 }
-
-  # 2. 匹配条件
   { ?item wdt:P31 ?targetClass . }
   UNION
   { ?item wdt:P279* ?targetClass . }
   
-  # 3. 获取标签
+  # 🌟 关键：使用 MINUS 明确排除这三个ID
+  MINUS {
+    VALUES ?item { wd:Q8268 wd:Q55255 wd:Q4295325 }
+  }
+
+  # 获取标签
   SERVICE wikibase:label { 
     bd:serviceParam wikibase:language "zh-hans,en" . 
     ?item rdfs:label ?itemLabel .
   }
-
-  # 🌟 关键：确保 FILTER 存在并正确执行
-  FILTER (?item != wd:Q8268 && ?item != wd:Q55255 && ?item != wd:Q4295325)
+  
+  # 确保 itemLabel 存在
   FILTER (BOUND(?itemLabel))
 
   LIMIT 500 
