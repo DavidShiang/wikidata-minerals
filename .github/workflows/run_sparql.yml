@@ -10,6 +10,10 @@ on:
 
 jobs:
   update-data:
+    # 🌟 关键修正：添加 permissions 块
+    permissions:
+      contents: write # 赋予对仓库内容的写入权限，允许 Bot 推送文件
+      
     runs-on: ubuntu-latest
     steps:
       # 1. 检出仓库代码 (使用 token 确保有写入权限)
