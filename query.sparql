@@ -24,6 +24,4 @@ WHERE
     ?crystalSystem rdfs:label ?crystalSystemLabel .
     ?mainLocation rdfs:label ?mainLocationLabel .
   }
-  # 限制条目数量，防止大型查询超时
-  LIMIT 500
 }
