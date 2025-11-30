@@ -35,5 +35,4 @@ WHERE
   FILTER (?item != wd:Q8268 && ?item != wd:Q55255 && ?item != wd:Q4295325)
   FILTER (BOUND(?itemLabel)) # 确保 itemLabel 存在
 
-  LIMIT 5000
 }
