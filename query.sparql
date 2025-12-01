@@ -1,4 +1,4 @@
-SELECT DISTINCT ?item 
+SELECT DISTINCT ?item ?itemLabel
                 ?mohsHardness ?densityNode ?chemicalFormula 
                 ?color ?image ?crystalSystem ?refractiveIndex ?mainLocation
 WHERE 
@@ -37,5 +37,10 @@ WHERE
   #     #<http://www.wikidata.org/entity/Q4295325> 
   #  }
   #}
+  # 6.获取项目标签，优先简体中文
+  SERVICE wikibase:label { 
+    bd:serviceParam wikibase:language "zh-hans,en" . 
+    ?item rdfs:label ?itemLabel .
+    }
 }
 LIMIT 500
