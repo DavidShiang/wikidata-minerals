@@ -1,0 +1,18 @@
+SELECT DISTINCT ?item 
+                ?mohsHardness ?densityNode ?chemicalFormula 
+                ?color ?image ?crystalSystem ?refractiveIndex ?mainLocation
+WHERE 
+{
+  # 🌟 关键：这里将由Python脚本动态插入 Stage 1 获取的 ?item ID 列表！
+  VALUES ?item { } # <--- 脚本将把 ID 填充到这里
+  
+  # 属性获取 (OPTIONAL 仍然保留)
+  OPTIONAL { ?item wdt:P2828 ?mohsHardness . }
+  OPTIONAL { ?item wdt:P2052 ?densityNode . } 
+  OPTIONAL { ?item wdt:P2733 ?chemicalFormula . }
+  OPTIONAL { ?item wdt:P462 ?color . }
+  OPTIONAL { ?item wdt:P18 ?image . }
+  OPTIONAL { ?item wdt:P2797 ?crystalSystem . }
+  OPTIONAL { ?item wdt:P6135 ?refractiveIndex . }
+  OPTIONAL { ?item wdt:P921 ?mainLocation . } 
+}
