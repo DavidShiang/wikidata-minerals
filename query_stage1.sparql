@@ -1,0 +1,25 @@
+SELECT DISTINCT ?item
+WHERE 
+{
+  # 使用新的、更稳定的ID
+  VALUES ?targetClass { 
+    <http://www.wikidata.org/entity/Q7946>     # 矿物 (mineral)
+    <http://www.wikidata.org/entity/Q83437>    # 宝石 (gemstone)
+    <http://www.wikidata.org/entity/Q4295325>  # 矿物种 (mineral species)
+  }
+
+  # 匹配条件
+  { ?item wdt:P31 ?targetClass . }
+  UNION
+  { ?item wdt:P279* ?targetClass . }
+  
+  # 排除父类
+  MINUS {
+    VALUES ?item { 
+        <http://www.wikidata.org/entity/Q7946> 
+        <http://www.wikidata.org/entity/Q83437> 
+        <http://www.wikidata.org/entity/Q4295325> 
+    }
+  }
+}
+LIMIT 500
