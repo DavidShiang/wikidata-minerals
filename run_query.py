@@ -137,7 +137,7 @@ if __name__ == "__main__":
             # 替换 Stage 2 模板中的占位符
             sparql_stage2 = sparql_stage2_template.replace('VALUES ?item { }', f'VALUES ?item {{ {values_list} }}')
             
-            df_results = execute_sparql_query(sparql_stage2, is_stage=False)
+            df_results = execute_sparql_query(sparql_stage2, is_stage1=False)
             
             # Final Step: Process data and save CSV
             process_and_save_data(df_results)
