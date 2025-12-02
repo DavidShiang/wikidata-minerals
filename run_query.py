@@ -2,6 +2,8 @@ import requests
 import pandas as pd
 import re
 import urllib.parse
+import json
+import time # 引入 time 模块用于暂停
 
 # Wikidata Endpoints
 SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql'
@@ -35,18 +37,27 @@ def get_labels_from_api(qids, lang='zh-hans'):
         except Exception as e:
             print(f"Error fetching API labels for chunk: {e}")
             pass
+            
+        # 🌟 速率限制：在每次批量 API 调用后暂停 1 秒
+        time.sleep(1)
+        
     return labels
 
 def execute_sparql_query(sparql_query, is_stage1=False):
-    """Executes a single SPARQL query."""
+    """Executes a single SPARQL query using POST request for stability."""
+    
     headers = {
         'Accept': 'application/sparql-results+json',
-        'User-Agent': 'GitHubActions-MineralsBot/1.0 (https://github.com/DavidShiang/wikidata-minerals)' # 使用您的仓库信息
+        'Content-Type': 'application/x-www-form-urlencoded',
+        # 遵守 Wikidata 的 User-Agent 要求
+        'User-Agent': 'GitHubActions-MineralsBot/1.0 (https://github.com/DavidShiang/wikidata-minerals)'
     }
-    params = {'query': sparql_query}
+    
+    data = {'query': sparql_query}
 
     print(f"Executing SPARQL query (Stage {'1' if is_stage1 else '2'})...")
-    response = requests.get(SPARQL_ENDPOINT, headers=headers, params=params)
+    
+    response = requests.post(SPARQL_ENDPOINT, headers=headers, data=data)
     
     if response.status_code != 200:
         print(f"Error executing query: HTTP {response.status_code}")
@@ -66,26 +77,27 @@ def execute_sparql_query(sparql_query, is_stage1=False):
 
     except Exception as e:
         print(f"Error processing JSON results: {e}")
+        try:
+            print("Response content (non-JSON):", response.text[:500])
+        except:
+            pass
         raise
 
 def process_and_save_data(df):
-    """Processes DataFrame by fetching labels and cleaning up data."""
+    # ... (该函数与之前版本保持一致)
     if df.empty:
         print("DataFrame is empty, nothing to process.")
         return
 
-    # 1. 识别需要标签解析的列 (item, color, crystalSystem, mainLocation)
     label_cols = ['item', 'color', 'crystalSystem', 'mainLocation']
     all_qids = set()
     for col in label_cols:
         if col in df.columns:
             all_qids.update(df[col].dropna().unique())
 
-    # 2. 批量获取标签 (使用中文)
     print(f"Fetching labels for {len(all_qids)} unique QIDs...")
     labels_map = get_labels_from_api(list(all_qids), lang='zh-hans')
 
-    # 3. 应用标签并重命名
     df = df.rename(columns={'item': 'itemURI'})
     df['itemLabel'] = df['itemURI'].map(labels_map).fillna(df['itemURI'])
 
@@ -95,20 +107,17 @@ def process_and_save_data(df):
             df[new_col] = df[old_col].map(labels_map).fillna(df[old_col])
             df = df.drop(columns=[old_col])
 
-    # 4. 提取密度值 (从 densityNode 中)
     if 'densityNode' in df.columns:
         df['densityValue'] = df['densityNode'].apply(
             lambda x: re.search(r'([0-9\.]+)', str(x)).group(1) if re.search(r'([0-9\.]+)', str(x)) else None
         )
         df = df.drop(columns=['densityNode'])
 
-    # 5. 整理最终列
     final_cols = ['itemLabel', 'chemicalFormula', 'mohsHardness', 'densityValue', 'colorLabel', 'crystalSystemLabel', 'refractiveIndex', 'mainLocationLabel', 'image', 'itemURI']
     final_cols = [col for col in final_cols if col in df.columns]
     
     df = df[final_cols]
 
-    # Save the results
     df.to_csv(OUTPUT_FILE, index=False, encoding='utf-8')
     print(f"Successfully retrieved {len(df)} rows.")
     print(f"Results saved to {OUTPUT_FILE}")
@@ -127,20 +136,36 @@ if __name__ == "__main__":
         else:
             print(f"Stage 1 successful. Retrieved {len(item_uris)} item IDs.")
             
-            # Stage 2: Fill IDs and Get Properties
+            # Stage 2: 批量查询属性
+            all_results_df = pd.DataFrame()
+            BATCH_SIZE = 50 
+
             with open('query_stage2.sparql', 'r', encoding='utf-8') as f:
                 sparql_stage2_template = f.read()
+
+            num_batches = (len(item_uris) + BATCH_SIZE - 1) // BATCH_SIZE
             
-            # 格式化 ID 列表，用于插入 SPARQL
-            values_list = ' '.join(f"<{uri}>" for uri in item_uris)
-            
-            # 替换 Stage 2 模板中的占位符
-            sparql_stage2 = sparql_stage2_template.replace('VALUES ?item { }', f'VALUES ?item {{ {values_list} }}')
-            
-            df_results = execute_sparql_query(sparql_stage2, is_stage1=False)
+            for i in range(0, len(item_uris), BATCH_SIZE):
+                batch_number = i // BATCH_SIZE + 1
+                batch_uris = item_uris[i:i + BATCH_SIZE]
+                
+                values_list = ' '.join(f"<{uri}>" for uri in batch_uris)
+                sparql_stage2 = sparql_stage2_template.replace('VALUES ?item { }', f'VALUES ?item {{ {values_list} }}')
+                
+                print(f"Executing SPARQL query (Stage 2 - Batch {batch_number} of {num_batches})...")
+                batch_df = execute_sparql_query(sparql_stage2, is_stage1=False)
+                
+                all_results_df = pd.concat([all_results_df, batch_df], ignore_index=True)
+                
+                # 🌟 速率限制：在每次 SPARQL 批次查询后暂停 1 秒
+                if batch_number < num_batches:
+                    print("Pausing for 1 second to respect rate limits...")
+                    time.sleep(1)
+
+            print(f"Stage 2 completed. Total rows retrieved: {len(all_results_df)}")
             
             # Final Step: Process data and save CSV
-            process_and_save_data(df_results)
+            process_and_save_data(all_results_df)
             
     except Exception as e:
         print(f"An error occurred during the process: {e}")
